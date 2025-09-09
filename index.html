@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Office Tools</title>
+  <link rel="icon" type="image/png" href="icon-office.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      /* Copilot-like palette */
+      --bg: #f6efe9;           /* warm peach page */
+      --surface: #ffffff;      /* cards/tiles */
+      --ink: #0f172a;          /* headings */
+      --muted: #475569;        /* body text */
+      --border: #e6e6ea;       /* light borders */
+      --primary: #2563eb;      /* blue CTA */
+      --primary-600:#2563eb;
+      --primary-700:#1e40af;
+      --accent-sky:#38bdf8;    /* sky accent wash */
+      --accent-lilac:#a78bfa;  /* lilac accent wash */
+      --accent-rose:#fb7185;   /* optional gradient start */
+    }
+    @media print { .no-print{display:none!important} }
+
+    /* Background washes like the M365 hero */
+    body::before{
+      content:"";
+      position:fixed; inset:0; pointer-events:none; z-index:-1;
+      background:
+        radial-gradient(1000px 500px at 70% -10%, rgba(167,139,250,.18), transparent 70%),
+        radial-gradient(900px 420px at -10% -10%, rgba(56,189,248,.16), transparent 70%);
+      background-color: var(--bg);
+    }
+
+    .tile { aspect-ratio: 1 / 1; }
+
+    /* Subtle gradient headline like Copilot */
+    .grad-title{
+      background: linear-gradient(90deg, var(--accent-rose), var(--accent-lilac));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    /* Button style tuned to MS-blue */
+    .btn {
+      @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm shadow;
+      background: var(--primary);
+      color: #fff;
+      border: 1px solid rgba(37,99,235,.15);
+    }
+    .btn:hover{ background: var(--primary-600); }
+    .btn:active{ background: var(--primary-700); }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col text-[15px] text-slate-700 selection:bg-blue-200">
+  <!-- Header -->
+  <header class="py-10">
+    <div class="max-w-3xl mx-auto px-4 text-center">
+      <div class="mx-auto w-24 h-24 mb-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center shadow-lg overflow-hidden">
+        <img src="icon-office.png" alt="Office Tools Icon" class="w-20 h-20 object-contain">
+      </div>
+      <h1 class="text-3xl font-extrabold tracking-tight grad-title">Office Tools</h1>
+      <p class="text-slate-600 mt-2">Create, share, and collaborate — quick launches for your everyday apps.</p>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1">
+    <div class="max-w-5xl mx-auto px-4">
+      <!-- Tiles -->
+      <div id="tiles" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+
+      <div class="mt-8 text-center">
+        <button id="addBtn" class="no-print btn">Add more tools (edit JSON)</button>
+      </div>
+
+      <!-- Collapsible editor -->
+      <section id="editor" class="hidden mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg">
+        <h2 class="font-semibold mb-2 text-[var(--ink)]">
+          Menu items (JSON) <span class="text-slate-500 font-normal">(optional <code>"icon"</code> per item)</span>
+        </h2>
+        <textarea id="jsonArea"
+          class="w-full h-56 rounded-lg border border-[var(--border)] bg-slate-50 text-slate-800 p-2 font-mono text-sm"></textarea>
+        <div class="flex gap-2 mt-3">
+          <button id="applyBtn" class="btn">Apply</button>
+          <button id="closeBtn" class="px-3 py-2 rounded-xl border border-[var(--border)] bg-slate-100 hover:bg-slate-200 text-slate-700">Close</button>
+        </div>
+      </section>
+
+      <p class="text-xs text-slate-500 mt-8 text-center">© Ingeniarch Labs — Office Hub v1.0</p>
+    </div>
+  </main>
+
+  <script>
+    // Seed list (edit with the JSON editor)
+    const defaultItems = [
+      { label: 'Mini-Docs — Word Processor', url: 'https://bretwalda98.github.io/Mini-Docs/', icon: 'mini-docs.png' },
+      { label: 'Mini-Sheets — Spreadsheet', url: '#', icon: 'mini-sheets.png' },
+      { label: 'PDF Merge & Split', url: '#', icon: 'pdf-merge-split.png' },
+      { label: 'Image ⇄ PDF Converter', url: '#', icon: 'image-pdf.png' },
+      { label: 'Docx ⇄ Markdown', url: '#', icon: 'docx-md.png' },
+      { label: 'Text Snippet / Clipboard Kit', url: '#', icon: 'snippet-kit.png' },
+      { label: 'QR / Barcode Generator', url: '#', icon: 'qr-barcode.png' },
+      { label: 'Unit & Currency Converter', url: '#', icon: 'unit-currency.png' },
+      { label: 'Invoice / Quote Template', url: '#', icon: 'invoice-template.png' },
+      { label: 'Meeting Notes & Actions', url: '#', icon: 'meeting-notes.png' },
+      { label: 'Kanban / Task Board', url: '#', icon: 'kanban-board.png' }
+    ];
+
+    const tilesContainer = document.getElementById('tiles');
+    const addBtn = document.getElementById('addBtn');
+    const editor = document.getElementById('editor');
+    const jsonArea = document.getElementById('jsonArea');
+    const applyBtn = document.getElementById('applyBtn');
+    const closeBtn = document.getElementById('closeBtn');
+
+    function slugify(str){
+      return String(str).toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    }
+    function iconPathFor(item){
+      const file = item.icon || `${slugify(item.label)}.png`;
+      return `${file}?v=1`;
+    }
+
+    function rebuild(items){
+      tilesContainer.innerHTML = '';
+      for (const it of items) {
+        const a = document.createElement('a');
+        a.href = it.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.ariaLabel = it.label;
+        a.title = (it.icon || `${slugify(it.label)}.png`);
+
+        a.className =
+          'tile min-h-[12rem] md:min-h-[14rem] w-full rounded-2xl border border-[var(--border)] '+
+          'bg-[var(--surface)] hover:bg-slate-50 active:bg-slate-100 transition shadow '+
+          'flex flex-col items-center justify-center p-7 md:p-8 text-center '+
+          'focus:outline-none focus:ring-2 focus:ring-[var(--primary)]';
+
+        const img = document.createElement('img');
+        img.className = 'w-24 h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 object-contain mb-3';
+        img.alt = `${it.label} icon`;
+        img.src = iconPathFor(it);
+        img.onerror = () => { img.src = 'icon-office.png'; };
+
+        const span = document.createElement('span');
+        span.textContent = it.label;
+        span.className = 'mt-1 text-base md:text-lg font-semibold text-[var(--ink)]';
+
+        a.appendChild(img);
+        a.appendChild(span);
+        tilesContainer.appendChild(a);
+      }
+    }
+
+    addBtn.addEventListener('click', ()=>{
+      editor.classList.remove('hidden');
+      jsonArea.value = JSON.stringify(defaultItems, null, 2);
+      jsonArea.focus();
+    });
+    closeBtn.addEventListener('click', ()=> editor.classList.add('hidden'));
+    applyBtn.addEventListener('click', ()=>{
+      try {
+        const items = JSON.parse(jsonArea.value);
+        if(!Array.isArray(items)) throw new Error('Root JSON must be an array.');
+        rebuild(items);
+        editor.classList.add('hidden');
+      } catch(e){
+        alert('Invalid JSON: ' + e.message);
+      }
+    });
+
+    rebuild(defaultItems);
+  </script>
+</body>
+</html>
